@@ -142,7 +142,7 @@
             left: 20px;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            gap: 10px;
             z-index: 9999;
         }
 
@@ -211,8 +211,8 @@
 
     <div id="supportFAB" class="fab-container">
         <div class="fab-options" id="fabOptions">
-            <a href="https://t.me/your_telegram" class="fab-option tg-bg">✈️</a>
-            <a href="https://wa.me/your_whatsapp" class="fab-option wa-bg">💬</a>
+            <a href="https://t.me/suui_7" target="_blank" class="fab-option tg-bg">✈️</a>
+            <a href="https://api.whatsapp.com/send?phone=249125706514" target="_blank" class="fab-option wa-bg">💬</a>
         </div>
         <div class="fab-main" onclick="toggleFab()">🎧</div>
     </div>
@@ -264,7 +264,7 @@
     </div>
 
     <div id="mainHeader" class="profile-card">
-        <div class="logout-btn" onclick="location.reload()">خروج</div>
+        <div class="logout-btn" onclick="handleLogout()">خروج</div>
         <div style="display: flex; align-items: center; gap: 12px;">
             <div style="width:45px; height:45px; background:rgba(255,255,255,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">👤</div>
             <div>
@@ -282,7 +282,7 @@
         <div class="card" style="text-align: center; padding: 30px 20px;">
             <div style="font-size: 3rem; margin-bottom: 10px;">📺</div>
             <h3>شاهد الإعلانات واربح</h3>
-            <p style="color: #666; font-size: 0.9rem; margin-bottom: 20px;">ستحصل على 3.00$ مقابل كل إعلان تشاهده</p>
+            <p style="color: #666; font-size: 0.9rem; margin-bottom: 20px;">ستحصل على 0.05$ مقابل كل إعلان تشاهده</p>
             <button onclick="watchAd()" class="btn-main" style="background: var(--dark);">▶️ ابدأ المشاهدة الآن</button>
             <div id="ad-count" style="margin-top: 15px; font-weight: bold; color: var(--gold-text);">0 / 15 إعلان اليوم</div>
         </div>
@@ -309,7 +309,7 @@
     <div id="withdrawFormPage" class="page">
         <div class="card">
             <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 25px;">
-                <button onclick="showPage('withdrawPage')" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">➡️</button>
+                <button onclick="showPage('withdrawPage')" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">⏎</button>
                 <h3 id="selected-method-title" style="margin:0">طلب سحب</h3>
             </div>
             <form onsubmit="handleWithdraw(event)">
@@ -329,18 +329,17 @@
 
     <div id="historyPage" class="page">
         <h4>📜 سجل سحوباتك</h4>
-        <div class="card" id="historyList">
-            </div>
+        <div class="card" id="historyList"></div>
     </div>
 
     <div id="bottomNav" class="bottom-nav">
-        <div class="nav-item active" onclick="showPage('adsPage', this)">
+        <div class="nav-item active" id="navAds" onclick="showPage('adsPage', this)">
             <div style="font-size: 1.2rem;">📺</div><div>الإعلانات</div>
         </div>
-        <div class="nav-item" onclick="showPage('withdrawPage', this)">
+        <div class="nav-item" id="navWithdraw" onclick="showPage('withdrawPage', this)">
             <div style="font-size: 1.2rem;">💰</div><div>السحب</div>
         </div>
-        <div class="nav-item" onclick="showPage('historyPage', this)">
+        <div class="nav-item" id="navHistory" onclick="showPage('historyPage', this)">
             <div style="font-size: 1.2rem;">📜</div><div>السجل</div>
         </div>
     </div>
@@ -351,27 +350,44 @@
     let userBalance = 0;
     let currentMethod = "";
 
-    // تبديل زر الدعم
+    // ميزة البقاء متصلاً: فحص الذاكرة عند فتح الصفحة
+    window.onload = function() {
+        const savedUser = localStorage.getItem('payplus_user_session');
+        if (savedUser) {
+            const user = JSON.parse(savedUser);
+            loginInterface(user);
+        }
+    };
+
     function toggleFab() {
         const options = document.getElementById('fabOptions');
         options.style.display = (options.style.display === 'flex') ? 'none' : 'flex';
     }
 
-    // التنقل بين الصفحات
     function showPage(pageId, element) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
         document.getElementById(pageId).classList.add('active-page');
-        
         if(element) {
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             element.classList.add('active');
         }
-
-        // إذا فتح صفحة السجل، قم بتحديث البيانات
         if(pageId === 'historyPage') fetchHistory();
     }
 
-    // التعامل مع تسجيل الدخول والإنشاء
+    function loginInterface(user) {
+        userBalance = user.balance;
+        document.getElementById('balance-display').innerText = "$" + userBalance.toFixed(2);
+        document.getElementById('user_name_top').innerText = user.name;
+        document.getElementById('ad-count').innerText = (user.ads_count || 0) + " / 15 اليوم";
+        
+        document.getElementById('loginPage').style.display = 'none';
+        document.getElementById('registerPage').style.display = 'none';
+        document.getElementById('mainHeader').style.display = 'block';
+        document.getElementById('bottomNav').style.display = 'flex';
+        document.getElementById('supportFAB').style.display = 'flex';
+        showPage('adsPage', document.getElementById('navAds'));
+    }
+
     function handleAuth(e, type) {
         e.preventDefault();
         const endpoint = type === 'register' ? '/api/register' : '/api/login';
@@ -388,29 +404,26 @@
         .then(resData => {
             if(resData.success) {
                 if(type === 'login') {
-                    // تخزين البيانات وتحديث الواجهة
-                    userBalance = resData.user.balance;
-                    document.getElementById('balance-display').innerText = "$" + userBalance.toFixed(2);
-                    document.getElementById('user_name_top').innerText = resData.user.name;
-                    document.getElementById('ad-count').innerText = resData.user.ads_count + " / 15 اليوم";
-                    
-                    // إظهار عناصر التطبيق الأساسية
-                    document.getElementById('loginPage').style.display = 'none';
-                    document.getElementById('mainHeader').style.display = 'block';
-                    document.getElementById('bottomNav').style.display = 'flex';
-                    document.getElementById('supportFAB').style.display = 'flex';
-                    showPage('adsPage');
+                    // حفظ الجلسة في المتصفح
+                    localStorage.setItem('payplus_user_session', JSON.stringify(resData.user));
+                    loginInterface(resData.user);
                 } else {
-                    alert("تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.");
+                    alert("تم إنشاء الحساب! سجل دخولك الآن.");
                     showPage('loginPage');
                 }
             } else {
-                alert(resData.message || "حدث خطأ ما");
+                alert(resData.message || "فشل الاتصال بالسيرفر");
             }
-        }).catch(err => alert("فشل الاتصال بالسيرفر"));
+        });
     }
 
-    // مشاهدة الإعلان
+    function handleLogout() {
+        if(confirm("هل تريد تسجيل الخروج؟")) {
+            localStorage.removeItem('payplus_user_session');
+            location.reload();
+        }
+    }
+
     function watchAd() {
         fetch('/api/watch-ad', { method: 'POST' })
         .then(res => res.json())
@@ -419,37 +432,32 @@
                 userBalance = data.new_balance;
                 document.getElementById('balance-display').innerText = "$" + userBalance.toFixed(2);
                 document.getElementById('ad-count').innerText = data.new_ads_count + " / 15 اليوم";
-                alert("تهانينا! تمت إضافة 3.00$ إلى رصيدك.");
+                alert("تمت إضافة 0.05$");
+                // تحديث البيانات المحفوظة
+                const user = JSON.parse(localStorage.getItem('payplus_user_session'));
+                user.balance = data.new_balance;
+                user.ads_count = data.new_ads_count;
+                localStorage.setItem('payplus_user_session', JSON.stringify(user));
             }
         });
     }
 
-    // اختيار وسيلة السحب
     function setMethod(m) {
         currentMethod = m;
         document.getElementById('selected-method-title').innerText = "سحب عبر " + m;
-        document.getElementById('details-label').innerText = (m === 'بنكك') ? "أدخل رقم الحساب واسم المستفيد" : "أدخل رقم المحفظة أو الـ ID";
+        document.getElementById('details-label').innerText = (m === 'بنكك') ? "رقم الحساب واسم المستفيد" : "رقم المحفظة أو الـ ID";
         showPage('withdrawFormPage');
     }
 
-    // تنفيذ طلب السحب
     function handleWithdraw(e) {
         e.preventDefault();
-        const amt = parseFloat(w_amount.value);
-        const details = w_details.value;
-
-        if (amt > userBalance) {
-            alert("عذراً، رصيدك غير كافٍ لهذا المبلغ.");
-            return;
-        }
-
         fetch('/api/withdraw', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 method: currentMethod, 
-                amount: amt,
-                details: details
+                amount: w_amount.value,
+                details: w_details.value
             })
         })
         .then(res => res.json())
@@ -457,25 +465,26 @@
             if(data.success) {
                 userBalance = data.new_balance;
                 document.getElementById('balance-display').innerText = "$" + userBalance.toFixed(2);
-                alert("تم إرسال طلب السحب بنجاح! سيتم التحقق من الطلب.");
-                w_amount.value = ""; w_details.value = "";
-                showPage('historyPage');
+                alert("تم إرسال طلب السحب!");
+                // تحديث الرصيد في الذاكرة
+                const user = JSON.parse(localStorage.getItem('payplus_user_session'));
+                user.balance = data.new_balance;
+                localStorage.setItem('payplus_user_session', JSON.stringify(user));
+                showPage('historyPage', document.getElementById('navHistory'));
             } else {
                 alert(data.message);
             }
         });
     }
 
-    // جلب سجل العمليات
     function fetchHistory() {
         const list = document.getElementById('historyList');
         list.innerHTML = "جاري التحميل...";
-
         fetch('/api/history')
         .then(res => res.json())
         .then(data => {
             if(data.length === 0) {
-                list.innerHTML = '<p style="text-align:center; color:#999;">لا يوجد سحوبات سابقة</p>';
+                list.innerHTML = '<p style="text-align:center; color:#999;">لا يوجد سحوبات</p>';
                 return;
             }
             list.innerHTML = data.map(item => `
