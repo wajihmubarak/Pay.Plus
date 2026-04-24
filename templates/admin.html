@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><title>Admin</title></head>
+<body>
+    <h2>طلبات السحب</h2>
+    <table border="1">
+        <tr><th>المستخدم</th><th>الوسيلة</th><th>المبلغ</th><th>الحالة</th></tr>
+        {% for w in withdrawals %}
+        <tr>
+            <td>{{ w.name }}</td>
+            <td>{{ w.method }}</td>
+            <td>${{ w.amount }}</td>
+            <td>{{ w.status }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
