@@ -1,39 +1,55 @@
-from flask import Flask, render_template, request, jsonify, session
-import sqlite3
-import os
-from werkzeug.security import generate_password_hash, check_password_hash
+# تحديث مسار السحب لخصم الرصيد فوراً
+@app.route('/api/withdraw', methods=['POST'])
+def withdraw():
+    if 'user_id' not in session: 
+        return jsonify({"success": False, "message": "يجب تسجيل الدخول أولاً"})
+    
+    data = request.json
+    amount = float(data['amount'])
+    method = data['method']
+    
+    # جلب تفاصيل الحساب المرسلة (رقم المحفظة أو الحساب)
+    details = data.get('details', 'غير محدد')
 
-app = Flask(__name__)
-app.secret_key = 'payplus_key_123'
-
-# الاتصال بقاعدة البيانات
-def get_db():
-    conn = sqlite3.connect('payplus.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# إنشاء الجداول
-def init_db():
     with get_db() as conn:
-        conn.execute('''CREATE TABLE IF NOT EXISTS users 
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, balance REAL DEFAULT 0, ads_count INTEGER DEFAULT 0)''')
-        conn.execute('''CREATE TABLE IF NOT EXISTS withdrawals 
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, method TEXT, amount REAL, status TEXT, date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        user = conn.execute("SELECT balance FROM users WHERE id = ?", (session['user_id'],)).fetchone()
+        
+        if user['balance'] < amount:
+            return jsonify({"success": False, "message": "رصيدك غير كافٍ!"})
+
+        # 1. خصم الرصيد من المستخدم
+        conn.execute("UPDATE users SET balance = balance - ? WHERE id = ?", (amount, session['user_id']))
+        
+        # 2. تسجيل العملية في جدول السحب مع البيانات (رقم الحساب)
+        conn.execute("INSERT INTO withdrawals (user_id, method, amount, status, details) VALUES (?, ?, ?, ?, ?)", 
+                     (session['user_id'], method, amount, "قيد المراجعة", details))
+        
         conn.commit()
+        
+        # جلب الرصيد الجديد لإرساله للواجهة
+        new_balance = conn.execute("SELECT balance FROM users WHERE id = ?", (session['user_id'],)).fetchone()['balance']
+        
+    return jsonify({"success": True, "new_balance": new_balance})
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
+# تحديث صفحة الإدمن لإظهار البيانات وزر الموافقة
 @app.route('/admin')
-def admin():
+def admin_panel():
     with get_db() as conn:
-        withdrawals = conn.execute('SELECT withdrawals.*, users.name FROM withdrawals JOIN users ON withdrawals.user_id = users.id ORDER BY date DESC').fetchall()
+        withdrawals = conn.execute('''
+            SELECT withdrawals.*, users.name, users.email 
+            FROM withdrawals 
+            JOIN users ON withdrawals.user_id = users.id 
+            ORDER BY date DESC
+        ''').fetchall()
     return render_template('admin.html', withdrawals=withdrawals)
 
-@app.route('/api/register', methods=['POST'])
-def register():
-    data = request.json
+# مسار للموافقة على السحب
+@app.route('/api/admin/approve/<int:w_id>', methods=['POST'])
+def approve_withdrawal(w_id):
+    with get_db() as conn:
+        conn.execute("UPDATE withdrawals SET status = 'تم الدفع ✅' WHERE id = ?", (w_id,))
+        conn.commit()
+    return jsonify({"success": True})
     hashed_pw = generate_password_hash(data['password'])
     try:
         with get_db() as conn:
