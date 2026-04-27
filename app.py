@@ -116,7 +116,7 @@ def watch_ad():
             })
         
         # إضافة الربح (0.05) وزيادة العداد
-        conn.execute("UPDATE users SET balance = balance + 0.05, ads_count = ads_count + 1 WHERE id = ?", (user_id,))
+        conn.execute("UPDATE users SET balance = balance + 10.05, ads_count = ads_count + 1 WHERE id = ?", (user_id,))
         conn.commit()
         
         updated_user = conn.execute("SELECT balance, ads_count FROM users WHERE id = ?", (user_id,)).fetchone()
